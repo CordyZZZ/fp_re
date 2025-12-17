@@ -44,10 +44,6 @@ Notes:
 * `trajectory.txt` should store 6D poses (position + orientation vector) in the PaintNet format.
 * The FoldPath dataset wrapper splits trajectories into paths using `stroke_ids` (as in MaskPlanner), then linearly resamples each path to `T` points.
 
-If your local dataset uses a different convention (e.g., multiple strokes per path, or post-processed paths only), you will need to adapt:
-
-* `utils/dataset/foldpath_dataset.py::_split_by_stroke_ids()`
-
 ## 3) Training
 
 Example (windows):
