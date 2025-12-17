@@ -85,17 +85,25 @@ python train_foldpath.py \
   --activation relu
 ```
 
-Common switches:
-
-* `--activation {relu,siren,finer}`
-  * `finer` is a runnable approximation (see TODO in `models/foldpath.py`).
-* `--T_train 64 --T_test 384` (paper defaults)
-* `--num_queries 40` (paper default)
-
 Outputs:
 
 * `runs/<...>/config.json`
 * `runs/<...>/checkpoints/last.pth`
+
+## 4) Generate predictions
+```bash
+python generate_predictions.py \
+  --checkpoint /workspace/tjl/foldpath_project/runs/foldpath_windows/checkpoints/last.pth \
+  --config /workspace/tjl/foldpath_project/runs/foldpath_windows/config.json \
+  --dataset windows-v2  \
+  --data_root /fileStore/windows-v2 \
+  --output_dir /workspace/tjl/foldpath_project/runs/foldpath_windows/ \
+  --split test \
+  --batch_size 4
+```
+
+Outputs:
+* `runs/<...>/all_predictions.npy`
 
 ## 4) Evaluation(new)
 ```bash
