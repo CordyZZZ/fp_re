@@ -74,13 +74,13 @@ If your local dataset uses a different convention (e.g., multiple strokes per pa
 
 ## 3) Training
 
-Example (single category):
+Example (windows):
 
 ```bash
 python train_foldpath.py \
-  --dataset cuboids-v2 \
-  --data_root /data/PaintNet/cuboids-v2 \
-  --out_dir runs/foldpath_cuboids \
+  --dataset windows-v2 \
+  --data_root /fileStore/windows-v2 \
+  --out_dir runs/foldpath_windows \
   --epochs 200 --batch_size 24 --lr 3e-4 \
   --activation relu
 ```
@@ -96,6 +96,24 @@ Outputs:
 
 * `runs/<...>/config.json`
 * `runs/<...>/checkpoints/last.pth`
+
+## 4) Evaluation(new)
+```bash
+python quick_check.py
+    --dataset windows-v2
+    --data_root /fileStore/windows-v2
+    --ckpt runs/foldpath_windows/checkpoint.pth
+    --split test
+    --out_dir ./eval_results
+    --save_predictions
+```
+Results are stored in JSON files under the eval_results folder.
+
+Example Results:
+|windows| code | paper |
+|--------|------|------|
+| AP_DTW^50 | 88 | 91.4 |
+| AP_DTW | 51.8 | 71.8 | 
 
 ## 4) Inference / sampling
 
