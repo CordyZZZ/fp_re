@@ -4,51 +4,27 @@ This repository is a **runnable** implementation of **FoldPath** ("End-to-End Ob
 
 FoldPath differs from MaskPlanner in one key way: instead of predicting *unordered discrete waypoints / segments* and relying on post-processing, it learns each path as a **continuous function** of a scalar parameter, enabling **ordered, smooth** path sampling directly (no concatenation stage required). This is the central shift described in the FoldPath paper: representing each path as a neural field conditioned on object features and per-path embeddings.
 
-## What is included / not included
-
-Included:
-
-* PointNet++ utilities and basic geometry/dataset I/O reused from MaskPlanner.
-* A FoldPath model implementation:
-  * PointNet++ encoder producing visual tokens `z` (length 256)
-  * transformer decoder with `N` learned path queries
-  * modulated MLP path head mapping `s \in [-1,1] -> (x,y,z, vx,vy,vz)`
-  * Hungarian matching on path positions and the losses described in the paper
-* A minimal training script: `train_foldpath.py`
-* A dataset wrapper that repackages PaintNet trajectories into **sets of paths**:
-  `utils/dataset/foldpath_dataset.py`
-
-Not included:
-
-* **Any pretrained weights** (per your requirement).
-* Proprietary simulation code and paint coverage evaluation.
-* Official FINER activation (we provide a runnable approximation; see TODO in code).
-
 ## 1) Environment setup
 
-Tested with Python 3.10+ and PyTorch 2.x.
-
+### Clone the Repository
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+git clone https://github.com/CordyZZZ/fp_re.git
+cd fp_re
 ```
 
-### Requirements / dependencies
+### Environment Setup
 
-The original MaskPlanner repo includes extra dependencies for many baselines. This FoldPath subset only needs:
-
-* torch
-* numpy
-* scipy
-* omegaconf (used by reused dataset code)
-* tqdm
-
-If your environment already runs MaskPlanner, you are fine.
+```bash
+conda create -n fp python=3.10
+conda activate fp
+conda install pytorch==2.1.0 torchvision==0.16.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install -r requirements.txt
+```
 
 ## 2) Dataset layout (PaintNet)
 
 This code expects the **same on-disk layout** as MaskPlanner:
+In the command lines below, <DATA_ROOT> is taken as "/fileStore/windows-v2"
 
 ```
 <DATA_ROOT>/
