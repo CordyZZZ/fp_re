@@ -115,6 +115,12 @@ Example Results:
 | AP_DTW^50 | 88 | 91.4 |
 | AP_DTW | 51.8 | 71.8 | 
 
+|windows+Siren| code | paper |
+|--------|------|------|
+| AP_DTW^50 | 90 | 91.3 |
+| AP_DTW | 52.10 | 71.9 | 
+
+
 
 
 ## 5) TODO markers (expected missing pieces)
