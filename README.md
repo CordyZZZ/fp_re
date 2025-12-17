@@ -115,28 +115,7 @@ Example Results:
 | AP_DTW^50 | 88 | 91.4 |
 | AP_DTW | 51.8 | 71.8 | 
 
-## 4) Inference / sampling
 
-FoldPath is designed to generate a whole path by sampling scalars `s` in `[-1,1]`.
-
-Minimal code snippet:
-
-```python
-import torch
-from models.foldpath import FoldPath, FoldPathConfig
-
-model = FoldPath(FoldPathConfig()).eval().cuda()
-pc = torch.randn(1, 5120, 3, device='cuda')
-s = torch.linspace(-1, 1, 384, device='cuda').view(1, 384, 1)
-y_hat, f_hat = model(pc, s)  # y_hat: [1, 40, 384, 6]
-```
-
-To select the most relevant paths, threshold the confidences:
-
-```python
-keep = f_hat[0] > 0.5
-paths = y_hat[0, keep]  # [K, 384, 6]
-```
 
 ## 5) TODO markers (expected missing pieces)
 
@@ -145,51 +124,6 @@ This repo is runnable as-is, but the following are explicitly left as TODOs to a
 1. **FINER activation exact reproduction**: see `models/foldpath.py::VariablePeriodic`.
 2. **Full AP-DTW metric and paint-coverage evaluation**: FoldPath paper introduces AP metrics using DTW; MaskPlanner has evaluation utilities, but integrating them end-to-end is task-specific.
 3. **Exact category-specific hyperparameters**: you can add config files per category if you want parity with the paper.
-
-## 6) Troubleshooting
-
-* If you see missing files such as `train_split.json` / `.obj` / `trajectory.txt`, your dataset root does not match the expected layout.
-* If orientations are not 3D unit vectors, normalize or convert them in the dataset loader.
-
-## License / provenance
-
-This implementation reuses substantial components from the MaskPlanner project you provided locally (PointNet++ utilities, data readers, and general project structure). No pretrained weights are distributed in this repository.
-
-
-## Evaluation (AP-DTW)
-
-This repo includes a runnable AP-DTW implementation (DTW-based detection AP as described in the FoldPath paper).
-
-```bash
-python eval_foldpath.py \
-  --dataset cuboids-v2 \
-  --data_root /path/to/PaintNet/cuboids-v2 \
-  --split test \
-  --ckpt runs/foldpath_cuboids/checkpoints/last.pth \
-  --T 384 --conf_thresh 0.35 --max_paths 40 \
-  --normalize_dtw
-```
-
-### TODO: DTW thresholds
-
-You **must** calibrate `--dtw_taus` to your trajectory units / normalization. The defaults are placeholders and may not correspond to your dataset scale.
-
-### Avoid重复推理：dump preds
-
-```bash
-python eval_foldpath.py \
-  --dataset cuboids-v2 --data_root /path/to/PaintNet/cuboids-v2 --split test \
-  --ckpt runs/foldpath_cuboids/checkpoints/last.pth \
-  --dump_preds --pred_out runs/foldpath_cuboids/eval_preds_foldpath.npy
-```
-
-Then evaluate only:
-
-```bash
-python eval_foldpath.py \
-  --dataset cuboids-v2 --data_root /path/to/PaintNet/cuboids-v2 --split test \
-  --ckpt DUMMY --pred_file runs/foldpath_cuboids/eval_preds_foldpath.npy
-```
 
 ## Inference dump (FoldPath → .npy)
 
