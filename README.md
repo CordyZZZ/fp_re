@@ -81,14 +81,16 @@ python train_foldpath.py \
   --dataset windows-v2 \
   --data_root /fileStore/windows-v2 \
   --out_dir runs/foldpath_windows \
-  --epochs 200 --batch_size 24 --lr 3e-4 \
+  --epochs 200 \
+  --batch_size 24 \
+  --lr 3e-4 \
   --activation relu
 ```
 
 Outputs:
 
-* `runs/<...>/config.json`
-* `runs/<...>/checkpoints/last.pth`
+* `runs/foldpath_windows/config.json`
+* `runs/foldpath_windows/checkpoints/last.pth`
 
 ## 4) Generate predictions
 ```bash
@@ -103,19 +105,20 @@ python generate_predictions.py \
 ```
 
 Outputs:
-* `runs/<...>/all_predictions.npy`
+* `runs/foldpath_windows/all_predictions.npy`
 
-## 4) Evaluation(new)
+## 5) Evaluation
 ```bash
-python quick_check.py
-    --dataset windows-v2
-    --data_root /fileStore/windows-v2
-    --ckpt runs/foldpath_windows/checkpoint.pth
-    --split test
-    --out_dir ./eval_results
-    --save_predictions
+python quick_check.py \
+  --dataset windows-v2 \
+  --data_root /fileStore/windows-v2 \
+  --ckpt runs/foldpath_windows/checkpoints/last.pth \
+  --split test \
+  --out_dir ./foldpath_windows/ \
+  --save_predictions
 ```
-Results are stored in JSON files under the eval_results folder.
+Outputs:
+* `runs/foldpath_windows/metrics.json`
 
 Example Results:
 |windows+ReLU| code | paper |
@@ -128,35 +131,14 @@ Example Results:
 | AP_DTW^50 | 90 | 91.3 |
 | AP_DTW | 52.10 | 71.9 | 
 
-
-
-
-## 5) TODO markers (expected missing pieces)
-
-This repo is runnable as-is, but the following are explicitly left as TODOs to avoid inventing assumptions beyond the paper:
-
-1. **FINER activation exact reproduction**: see `models/foldpath.py::VariablePeriodic`.
-2. **Full AP-DTW metric and paint-coverage evaluation**: FoldPath paper introduces AP metrics using DTW; MaskPlanner has evaluation utilities, but integrating them end-to-end is task-specific.
-3. **Exact category-specific hyperparameters**: you can add config files per category if you want parity with the paper.
-
-## Inference dump (FoldPath → .npy)
-
+## 6) Visualization
 ```bash
-python predict_foldpath.py \
-  --dataset cuboids-v2 \
-  --data_root /path/to/PaintNet/cuboids-v2 \
-  --split test \
-  --ckpt runs/foldpath_cuboids/checkpoints/last.pth \
-  --T 384 --conf_thresh 0.35 --max_paths 40
+python render_results_plt.py \
+  --pred_dir /workspace/tjl/foldpath_project/runs/foldpath_windows \
+  --normalized_root /fileStore/windows-v2-normalized \
+  --sample_dirs 1_wr1fr_1 \
+  --output_dir /workspace/tjl/foldpath_project/runs/foldpath_windows/ \
+  --top_k_paths 4
 ```
-
-Outputs a `.npy` file under `<run>/predictions_foldpath/`.
-
-## Visualization
-
-Use the existing MaskPlanner `render_results.py` with the new `--pred_dir` option:
-
-```bash
-python render_results.py --run runs/foldpath_cuboids --pred_dir predictions_foldpath --split test \
-  --top_k_paths 20 --conf_thresh 0.35 --sidebyside --display
-```
+Outputs:
+* `runs/foldpath_windows/1_wr1fr_1_pred_vs_gt.png`
