@@ -110,7 +110,7 @@ python quick_check.py
 Results are stored in JSON files under the eval_results folder.
 
 Example Results:
-|windows| code | paper |
+|windows+ReLU| code | paper |
 |--------|------|------|
 | AP_DTW^50 | 88 | 91.4 |
 | AP_DTW | 51.8 | 71.8 | 
