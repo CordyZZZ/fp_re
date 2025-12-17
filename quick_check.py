@@ -102,17 +102,14 @@ def extract_paths_from_predictions(predictions: dict, conf_thresh: float = 0.35)
             
         path_points = traj_pred[mask]
         
-        # Handle confidence scores - 修复这里的bug
+        # Handle confidence scores
         if len(conf_scores) == len(traj_pred):
-            # 每个点都有置信度分数
             path_confs = conf_scores[mask]
             avg_conf = np.mean(path_confs)
         elif len(conf_scores) == len(unique_stroke_ids):
-            # 每个路径有一个置信度分数
             stroke_idx = np.where(unique_stroke_ids == stroke_id)[0][0]
             avg_conf = conf_scores[stroke_idx] if stroke_idx < len(conf_scores) else 1.0
         else:
-            # 单个置信度分数
             avg_conf = float(conf_scores[0]) if len(conf_scores) > 0 else 1.0
         
         # Filter by confidence
@@ -560,21 +557,21 @@ def evaluate_model(args):
     print("EVALUATION RESULTS")
     print("=" * 60)
     
-    print(f"\n📊 DTW-based AP Metrics (Paper Section IV.C):")
+    print(f"DTW-based AP Metrics (Paper Section IV.C):")
     print(f"  AP_DTW:       {final_metrics['AP_DTW']:.4f}")
     print(f"  AP_DTW_50:    {final_metrics['AP_DTW_50']:.4f}")
     print(f"  Mean F-Score: {final_metrics['mean_F_score']:.4f} ± {final_metrics['std_F_score']:.4f}")
     
-    print(f"\n📏 Distance Metrics:")
+    print(f"Distance Metrics:")
     print(f"  Chamfer Distance: {final_metrics['Chamfer_Distance']:.4f} ± {final_metrics['Chamfer_Distance_std']:.4f}")
     
-    print(f"\n📈 Path Statistics:")
+    print(f"Path Statistics:")
     print(f"  Avg predicted paths:  {final_metrics['avg_predicted_paths']:.1f}")
     print(f"  Avg ground truth paths: {final_metrics['avg_ground_truth_paths']:.1f}")
     print(f"  Path coverage:        {final_metrics['path_coverage']:.3f}")
     print(f"  Avg confidence:       {final_metrics['avg_confidence']:.3f}")
     
-    print(f"\n⚙️  Configuration:")
+    print(f"Configuration:")
     print(f"  Samples evaluated: {final_metrics['num_samples']}")
     print(f"  Checkpoint epoch:  {final_metrics['checkpoint_epoch']}")
     print(f"  Time: {final_metrics['evaluation_time_seconds']:.1f} seconds")
@@ -588,7 +585,7 @@ def evaluate_model(args):
     metrics_file = os.path.join(args.out_dir, "metrics.json")
     with open(metrics_file, "w") as f:
         json.dump(final_metrics, f, indent=2)
-    print(f"\n💾 Metrics saved to: {metrics_file}")
+    print(f"Metrics saved to: {metrics_file}")
     
     # Save predictions if requested
     if args.save_predictions:
@@ -609,7 +606,7 @@ def evaluate_model(args):
         
         with open(predictions_file, "w") as f:
             json.dump(predictions_data, f, indent=2, default=convert_numpy)
-        print(f"💾 Predictions saved to: {predictions_file}")
+        print(f"Predictions saved to: {predictions_file}")
     
     return final_metrics
 
