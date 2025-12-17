@@ -132,6 +132,14 @@ Example Results:
 | AP_DTW | 52.10 | 71.9 | 
 
 ## 6) Visualization
+To enhance the elegance and maintainability of this repository, I propose integrating this normalization operation into the data preprocessing pipeline. 
+```bash
+python normalize_dataset.py \
+  --data_root /fileStore/windows-v2 \
+  --output_root /fileStore/windows-v2-normalized \
+  --normalization per-mesh
+```
+The resulting normalized dataset is then leveraged for visualization purposes.
 ```bash
 python render_results_foldpath.py \
   --pred_dir /workspace/tjl/foldpath_project/runs/foldpath_windows \
