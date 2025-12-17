@@ -94,7 +94,7 @@ Outputs:
 
 ## 4) Generate predictions
 ```bash
-python generate_predictions.py \
+python generate_predictions_foldpath.py \
   --checkpoint /workspace/tjl/foldpath_project/runs/foldpath_windows/checkpoints/last.pth \
   --config /workspace/tjl/foldpath_project/runs/foldpath_windows/config.json \
   --dataset windows-v2  \
@@ -109,7 +109,7 @@ Outputs:
 
 ## 5) Evaluation
 ```bash
-python quick_check.py \
+python eval_foldpath.py \
   --dataset windows-v2 \
   --data_root /fileStore/windows-v2 \
   --ckpt runs/foldpath_windows/checkpoints/last.pth \
@@ -133,7 +133,7 @@ Example Results:
 
 ## 6) Visualization
 ```bash
-python render_results_plt.py \
+python render_results_foldpath.py \
   --pred_dir /workspace/tjl/foldpath_project/runs/foldpath_windows \
   --normalized_root /fileStore/windows-v2-normalized \
   --sample_dirs 1_wr1fr_1 \
