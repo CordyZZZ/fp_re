@@ -92,7 +92,11 @@ python eval_foldpath.py \
 Outputs:
 * `runs/foldpath_windows/metrics.json`
 
+
+Warning: Forget to add LayerNorm for ReLU activation, so this result is expected to be replaced later.
+Warning: I may misunderstand the word 'mean' in calculating AP_DTW …
 Example Results:
+#### reproduction of TABLE 1: cuboids, windows, and shelves
 |windows+ReLU| code | paper |
 |--------|------|------|
 | AP_DTW^50 | 88 | 91.4 |
@@ -102,6 +106,17 @@ Example Results:
 |--------|------|------|
 | AP_DTW^50 | 90 | 91.3 |
 | AP_DTW | 52.10 | 71.9 | 
+
+| dataset | activation | AP_DTW | AP_DTW (paper) | AP_DTW^50 | AP_DTW^50 (paper)
+|--------|--------|------|------| ------ | ------ |
+| windows | relu | x | `71.8` | x | `91.4` |
+| | siren | x | `71.9` | x | `91.3`|
+
+#### reproduction of TABLE 2: containers
+| dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) | Paint Cov. | Paint Cov. (paper)
+|--------|--------|------|------| ------ | ------ |
+| containers | relu | x | `13.7` | x | `91.1` |
+
 
 ## 6) Visualization
 To enhance the elegance and maintainability of this repository, I propose integrating this normalization operation into the data preprocessing pipeline. 
