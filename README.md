@@ -118,7 +118,7 @@ Example Results:
 | | siren | x | `71.9` | 90 | `91.3`|
 | | firen | x | `75.0` | x | `91.9`|
 | shelves | relu | x | `75.4` | x | `88.4` |
-| | siren | x | `78.0` | x | `89.53`|
+| | siren | x | `78.0` | x | `89.5`|
 | | firen | x | `84.3` | x | `91.3`|
 
 #### reproduction of TABLE 2: containers
