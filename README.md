@@ -52,7 +52,7 @@ Example (windows):
 python train_foldpath.py \
   --dataset windows-v2 \
   --data_root /fileStore/windows-v2 \
-  --out_dir runs/foldpath_windows \
+  --out_dir runs/foldpath_windows_relu \
   --epochs 200 \
   --batch_size 24 \
   --lr 3e-4 \
@@ -61,36 +61,38 @@ python train_foldpath.py \
 
 Outputs:
 
-* `runs/foldpath_windows/config.json`
-* `runs/foldpath_windows/checkpoints/last.pth`
+* `runs/foldpath_windows_relu/config.json`
+* `runs/foldpath_windows—_relu/checkpoints/last.pth`
 
 ## 4) Generate predictions
 ```bash
 python generate_predictions_foldpath.py \
-  --checkpoint /workspace/tjl/foldpath_project/runs/foldpath_windows/checkpoints/last.pth \
-  --config /workspace/tjl/foldpath_project/runs/foldpath_windows/config.json \
+  --checkpoint ./runs/foldpath_windows_relu/checkpoints/last.pth \
+  --config ./runs/foldpath_windows_relu/config.json \
   --dataset windows-v2  \
   --data_root /fileStore/windows-v2 \
-  --output_dir /workspace/tjl/foldpath_project/runs/foldpath_windows/ \
+  --output_dir ./runs/foldpath_windows_relu/ \
   --split test \
   --batch_size 4
 ```
 
 Outputs:
-* `runs/foldpath_windows/all_predictions.npy`
+* `runs/foldpath_windows_relu/all_predictions.npy`
 
 ## 5) Evaluation
 ```bash
 python eval_foldpath.py \
   --dataset windows-v2 \
   --data_root /fileStore/windows-v2 \
-  --ckpt runs/foldpath_windows/checkpoints/last.pth \
+  --ckpt runs/foldpath_windows_relu/checkpoints/last.pth \
+  --activation relu \
   --split test \
-  --out_dir ./foldpath_windows/ \
+  --out_dir ./foldpath_windows_relu/ \
   --save_predictions
 ```
+  
 Outputs:
-* `runs/foldpath_windows/metrics.json`
+* `runs/foldpath_windows_relu/metrics.json`
 
 
 #### reproduction of TABLE 1: cuboids, windows, and shelves
