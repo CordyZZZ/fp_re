@@ -94,7 +94,9 @@ Outputs:
 
 
 Warning: Forget to add LayerNorm for ReLU activation, so this result is expected to be replaced later.
+
 Warning: I may misunderstand the word 'mean' in calculating AP_DTW …
+
 Example Results:
 #### reproduction of TABLE 1: cuboids, windows, and shelves
 |windows+ReLU| code | paper |
