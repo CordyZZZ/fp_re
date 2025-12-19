@@ -109,15 +109,16 @@ Example Results:
 
 | dataset | activation | AP_DTW | AP_DTW (paper) | AP_DTW^50 | AP_DTW^50 (paper)
 |--------|--------|------|------| ------ | ------ |
-| windows | relu | x | `71.8` | x | `91.4` |
-| | siren | x | `71.9` | x | `91.3`|
+| windows | relu | x | `71.8` | 88 | `91.4` |
+| | siren | x | `71.9` | 90 | `91.3`|
 | | firen | x | `75.0` | x | `91.9`|
 
 #### reproduction of TABLE 2: containers
 | dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) | Paint Cov. | Paint Cov. (paper)
 |--------|--------|------|------| ------ | ------ |
-| containers | relu | x | `13.7` | x | `91.1` |
+| containers | finer | x | `13.7` | x | `91.1` |
 
+PS: As noted in the paper, PCD metrics are dependent on the sampling rate and exhibit high sensitivity to outliers, rendering them unreliable and less informative in real-world scenarios. For this reason, we omit this metric from our reproduction and comparative analysis.
 
 ## 6) Visualization
 To enhance the elegance and maintainability of this repository, I propose integrating this normalization operation into the data preprocessing pipeline. 
