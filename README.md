@@ -93,21 +93,7 @@ Outputs:
 * `runs/foldpath_windows/metrics.json`
 
 
-Warning: Forget to add LayerNorm for ReLU activation, so this result is expected to be replaced later.
-
-Warning: I may misunderstand the word 'mean' in calculating AP_DTW …
-
-Example Results:
 #### reproduction of TABLE 1: cuboids, windows, and shelves
-|windows+ReLU| code | paper |
-|--------|------|------|
-| AP_DTW^50 | 88 | 91.4 |
-| AP_DTW | 51.8 | 71.8 | 
-
-|windows+Siren| code | paper |
-|--------|------|------|
-| AP_DTW^50 | 90 | 91.3 |
-| AP_DTW | 52.10 | 71.9 | 
 
 | dataset | activation | AP_DTW | AP_DTW (paper) | AP_DTW^50 | AP_DTW^50 (paper)
 |--------|--------|------|------| ------ | ------ |
