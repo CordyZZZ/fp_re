@@ -109,9 +109,15 @@ Example Results:
 
 | dataset | activation | AP_DTW | AP_DTW (paper) | AP_DTW^50 | AP_DTW^50 (paper)
 |--------|--------|------|------| ------ | ------ |
-| windows | relu | x | `71.8` | 88 | `91.4` |
+| cuboids | relu | x | `35.2` | x | `59.8` |
+| | siren | x | `60.3` | x | `97.5`|
+| | firen | x | `91.1` | x | `99.2`|
+| windows | relu | x | `71.8` |  | `91.4` |
 | | siren | x | `71.9` | 90 | `91.3`|
 | | firen | x | `75.0` | x | `91.9`|
+| shelves | relu | x | `75.4` | x | `88.4` |
+| | siren | x | `78.0` | x | `89.53`|
+| | firen | x | `84.3` | x | `91.3`|
 
 #### reproduction of TABLE 2: containers
 | dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) | Paint Cov. | Paint Cov. (paper)
