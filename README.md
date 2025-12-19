@@ -111,6 +111,7 @@ Example Results:
 |--------|--------|------|------| ------ | ------ |
 | windows | relu | x | `71.8` | x | `91.4` |
 | | siren | x | `71.9` | x | `91.3`|
+| | firen | x | `75.0` | x | `91.9`|
 
 #### reproduction of TABLE 2: containers
 | dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) | Paint Cov. | Paint Cov. (paper)
