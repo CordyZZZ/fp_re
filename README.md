@@ -111,7 +111,7 @@ Example Results:
 
 | dataset | activation | AP_DTW | AP_DTW (paper) | AP_DTW^50 | AP_DTW^50 (paper)
 |--------|--------|------|------| ------ | ------ |
-| cuboids | relu | x | `35.2` | x | `59.8` |
+| cuboids | relu | x | `35.2` | 90.5 | `59.8` |
 | | siren | x | `60.3` | x | `97.5`|
 | | firen | x | `91.1` | x | `99.2`|
 | windows | relu | x | `71.8` |  | `91.4` |
