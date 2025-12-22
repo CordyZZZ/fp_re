@@ -124,7 +124,10 @@ python normalize_dataset.py \
   --output_root /fileStore/windows-v2-normalized \
   --normalization per-mesh
 ```
-The resulting normalized dataset is then leveraged for visualization purposes.
+The normalized dataset generated from this process is subsequently utilized for visualization. I propose the following two implementation options to accommodate different server environments:
+1. Adopt the vtk library.
+2. Utilize the matplotlib library for scenarios where the server lacks X11 display capabilities;
+
 ```bash
 python render_results_foldpath.py \
   --pred_dir /workspace/tjl/foldpath_project/runs/foldpath_windows \
@@ -134,4 +137,7 @@ python render_results_foldpath.py \
   --top_k_paths 4
 ```
 Outputs:
-* `runs/foldpath_windows/1_wr1fr_1_pred_vs_gt.png`
+* `runs/foldpath_windows/viz/526_wr1fr_1_pred_vs_gt.png`
+* `runs/foldpath_windows/viz/526_wr1fr_1_pred_vs_gt_plt.png`
+
+Example Outcome:
