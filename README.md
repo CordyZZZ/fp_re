@@ -129,15 +129,26 @@ The normalized dataset generated from this process is subsequently utilized for 
 2. Utilize the matplotlib library for scenarios where the server lacks X11 display capabilities;
 
 ```bash
-python render_results_foldpath.py \
-  --pred_dir /workspace/tjl/foldpath_project/runs/foldpath_windows \
+python python visualize_foldpath.py
+  --pred_dir ./runs/foldpath_windows_siren \
+  --normalized_root ./../dataset/windows-v2 \
+  --sample_dirs 256_wr1fr_1 \
+  --output_dir ./runs/foldpath_windows_siren/viz \
+  --max_trajectories 6
+```
+```bash
+python visualize_foldpath_plt.py \
+  --pred_dir ./runs/foldpath_windows \
   --normalized_root /fileStore/windows-v2-normalized \
-  --sample_dirs 1_wr1fr_1 \
-  --output_dir /workspace/tjl/foldpath_project/runs/foldpath_windows/ \
-  --top_k_paths 4
+  --sample_dirs 256_wr1fr_1 \
+  --output_dir ./runs/foldpath_windows_siren/viz \
+  --top_k_paths 6
 ```
 Outputs:
 * `runs/foldpath_windows/viz/526_wr1fr_1_pred_vs_gt.png`
 * `runs/foldpath_windows/viz/526_wr1fr_1_pred_vs_gt_plt.png`
 
 Example Outcome:
+<img width="3840" height="2160" alt="256_wr1fr_1" src="https://github.com/user-attachments/assets/1a506425-c10e-487f-9478-344acbd5e429" />
+
+
