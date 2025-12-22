@@ -383,13 +383,13 @@ def setup_camera(renderer: vtk.vtkRenderer, bounds: List[float]) -> None:
         max_dim = max(dx, dy, dz)
         
         # Set camera distance
-        distance = max_dim * 2.5
+        distance = max_dim * 0.5
         
         # Set camera position to show isometric view
         camera.SetPosition(
-            center[0] + distance * 0.7,
-            center[1] - distance * 0.7,
-            center[2] + distance * 0.7
+            center[0] + distance * 0.5,
+            center[1] - distance * 0.5,
+            center[2] + distance * 0.5
         )
         camera.SetFocalPoint(center[0], center[1], center[2])
         camera.SetViewUp(0, 0, 1)
@@ -403,7 +403,7 @@ def setup_camera(renderer: vtk.vtkRenderer, bounds: List[float]) -> None:
         renderer.ResetCamera(bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5])
         
         # Zoom out a bit more for safety
-        camera.Zoom(0.8)
+        camera.Zoom(1.2)
         
     except Exception:
         pass
@@ -456,7 +456,7 @@ def create_visualization(mesh_polydata: Optional[vtk.vtkPolyData],
                 line_actor = create_trajectory_actor(
                     traj,
                     color=color,
-                    line_width=5.0,
+                    line_width=10.0,
                     opacity=0.8
                 )
                 if line_actor:
@@ -466,7 +466,7 @@ def create_visualization(mesh_polydata: Optional[vtk.vtkPolyData],
                 points_actor = create_trajectory_points_actor(
                     traj,
                     color=color,
-                    point_size=5.0,
+                    point_size=10.0,
                     opacity=0.8,
                     is_ground_truth=False
                 )
@@ -481,7 +481,7 @@ def create_visualization(mesh_polydata: Optional[vtk.vtkPolyData],
                 points_actor = create_trajectory_points_actor(
                     traj,
                     color=color,
-                    point_size=5.0,
+                    point_size=10.0,
                     opacity=1.0,
                     is_ground_truth=True
                 )
@@ -607,7 +607,7 @@ def main():
         
         # Create visualization
         if pred_trajectories or gt_trajectories:
-            output_path = os.path.join(args.output_dir, f"{sample_dir}.png")
+            output_path = os.path.join(args.output_dir, f"{sample_dir}_pred_vs_gt.png")
             
             success = create_visualization(
                 mesh_polydata=mesh_polydata,
