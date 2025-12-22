@@ -151,5 +151,6 @@ Outputs:
 Example Outcome:
 | method 1: vtk | method 2: plt |
 | --- | --- |
-| <img width="3840" height="2160" alt="256_wr1fr_1" src="https://github.com/user-attachments/assets/1a506425-c10e-487f-9478-344acbd5e429" /> | <img width="1748" height="1791" alt="256_wr1fr_1_pred_vs_gt_plt" src="https://github.com/user-attachments/assets/42c6fe80-b0a5-4a29-916b-a96498a89f2d" /> |
+|<img width="3840" height="2160" alt="256_wr1fr_1_pred_vs_gt" src="https://github.com/user-attachments/assets/3b9c8139-87a9-4560-8698-880de85a2be0" />
+  | <img width="1748" height="1791" alt="256_wr1fr_1_pred_vs_gt_plt" src="https://github.com/user-attachments/assets/42c6fe80-b0a5-4a29-916b-a96498a89f2d" /> |
 
