@@ -1,4 +1,4 @@
-# FoldPath (built from MaskPlanner codebase)
+# FoldPath
 
 This repository is a **runnable** implementation of **FoldPath** ("End-to-End Object-Centric Motion Generation via Modulated Implicit Paths") built by **reusing** the local MaskPlanner project files you provided.
 
@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ## 2) Dataset layout (PaintNet)
 
 This code expects the **same on-disk layout** as MaskPlanner:
-In the command lines below, <DATA_ROOT> is taken as "/fileStore/windows-v2"
+In the command lines below, <DATA_ROOT> is taken as "/fileStore/cuboids-v2"
 
 ```
 <DATA_ROOT>/
@@ -50,34 +50,32 @@ Example (windows):
 
 ```bash
 python train_foldpath.py \
-  --dataset windows-v2 \
-  --data_root /fileStore/windows-v2 \
-  --out_dir runs/foldpath_windows_relu \
+  --dataset cuboids-v2 \
+  --data_root /fileStore/cuboids-v2 \
+  --out_dir runs/foldpath_cuboids_finer \
   --epochs 200 \
   --batch_size 24 \
   --lr 3e-4 \
-  --activation relu
+  --activation finer
 ```
 
 Outputs:
 
-* `runs/foldpath_windows_relu/config.json`
-* `runs/foldpath_windows—_relu/checkpoints/last.pth`
+* `runs/foldpath_cuboids_finer/config.json`
+* `runs/foldpath_cuboids_finer/checkpoints/last.pth`
 
-## 4) Generate predictions
+## 4) Inference
 ```bash
-python generate_predictions_foldpath.py \
-  --checkpoint ./runs/foldpath_windows_relu/checkpoints/last.pth \
-  --config ./runs/foldpath_windows_relu/config.json \
-  --dataset windows-v2  \
-  --data_root /fileStore/windows-v2 \
-  --output_dir ./runs/foldpath_windows_relu/ \
-  --split test \
-  --batch_size 4
+python inference.py \
+  --checkpoint runs/foldpath_cuboids_finer/checkpoints/last.pth \
+  --data_root ./../dataset/cuboids-v2 \
+  --sample_dir 167_cube_1001_1459_988 \
+  --output ./runs/foldpath_cuboids_finer/foldpath_cuboids_predictions_167_finer.npy 
 ```
-
 Outputs:
-* `runs/foldpath_windows_relu/all_predictions.npy`
+
+* `runs/foldpath_cuboids_finer/foldpath_cuboids_predictions_167_finer.json`
+* `runs/foldpath_cuboids_finer/foldpath_cuboids_predictions_167_finer.npy`
 
 ## 5) Evaluation
 ```bash
@@ -110,47 +108,50 @@ Outputs:
 | | firen | x | `84.3` | x | `91.3`|
 
 #### reproduction of TABLE 2: containers
-| dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) | Paint Cov. | Paint Cov. (paper)
-|--------|--------|------|------| ------ | ------ |
-| containers | finer | x | `13.7` | x | `91.1` |
+| dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) |
+|--------|--------|------|------|
+| containers | finer | x | `13.7` |
 
 PS: As noted in the paper, PCD metrics are dependent on the sampling rate and exhibit high sensitivity to outliers, rendering them unreliable and less informative in real-world scenarios. For this reason, we omit this metric from our reproduction and comparative analysis.
 
-## 6) Visualization
-To enhance the elegance and maintainability of this repository, I propose integrating this normalization operation into the data preprocessing pipeline. 
+## 6) Normalization
+I have already integrated the normalization step into the visualization module, so there is no longer a need to perform normalization separately. That said, I have retained the normalization code for verification and auditing purposes.
 ```bash
 python normalize_dataset.py \
-  --data_root /fileStore/windows-v2 \
-  --output_root /fileStore/windows-v2-normalized \
+  --data_root /fileStore/cuboids-v2 \
+  --output_root /fileStore/cuboids-v2-normalized \
   --normalization per-mesh
 ```
-The normalized dataset generated from this process is subsequently utilized for visualization. I propose the following two implementation options to accommodate different server environments:
-1. Adopt the vtk library.
-2. Utilize the matplotlib library for scenarios where the server lacks X11 display capabilities;
+
+## 7) Visualization
+To accommodate different server environments, I propose the following three implementation options:
+1. Utilize the VTK library to generate a static visualization;
+2. Utilize the VTK library to generate an interactively rotatable visualization;
+3. Utilize the Matplotlib library for scenarios where the server lacks X11 display capabilities.
 
 ```bash
-python python visualize_foldpath.py \
-  --pred_dir ./runs/foldpath_windows_siren \
-  --normalized_root ./../dataset/windows-v2 \
-  --sample_dirs 256_wr1fr_1 \
-  --output_dir ./runs/foldpath_windows_siren/viz \
-  --max_trajectories 6
+python visualize_foldpath.py \
+  --inference_file ./runs/foldpath_cuboids_finer/foldpath_cuboids_predictions_167_finer.npy \
+  --data_root ./../dataset/cuboids-v2 \
+  --sample_dir 167_cube_1001_1459_988 \
+  --max_trajectories 6 \
+  --output_dir ./runs/foldpath_cuboids_finer
 ```
+
 ```bash
-python visualize_foldpath_plt.py \
-  --pred_dir ./runs/foldpath_windows_siren \
-  --normalized_root ./../dataset/windows-v2 \
-  --sample_dirs 256_wr1fr_1 \
-  --output_dir ./runs/foldpath_windows_siren/viz \
+## interactively rotatable version
+python viz_foldpath.py \
+  --inference_file ./runs/foldpath_cuboids_finer/foldpath_cuboids_predictions_167_finer.npy \
+  --data_root ./../dataset/cuboids-v2 \
+  --sample_dir 167_cube_1001_1459_988 \
   --max_trajectories 6
 ```
+
 Outputs:
-* `runs/foldpath_windows/viz/526_wr1fr_1_pred_vs_gt.png`
-* `runs/foldpath_windows/viz/526_wr1fr_1_pred_vs_gt_plt.png`
+* `runs/foldpath_cuboids_finer/167_cube_1001_1459_988_foldpath.png`
 
 Example Outcome:
-| method 1: vtk | method 2: plt |
+| visualize_foldpath | viz_foldpath |
 | --- | --- |
-|<img width="3840" height="2160" alt="256_wr1fr_1_pred_vs_gt" src="https://github.com/user-attachments/assets/3b9c8139-87a9-4560-8698-880de85a2be0" />
-  | <img width="1748" height="1791" alt="256_wr1fr_1_pred_vs_gt_plt" src="https://github.com/user-attachments/assets/42c6fe80-b0a5-4a29-916b-a96498a89f2d" /> |
+| <img width="500" height="500" alt="167_cube_1001_1459_988_foldpath" src="https://github.com/user-attachments/assets/4c219343-ae8e-478e-8f4a-f9064affa44e" /> | <img width="350" height="350" alt="167_cube_1001_1459_988_foldpath_scroll" src="https://github.com/user-attachments/assets/9cb22089-a45a-4022-8779-c308112ccc75" /> |
 
