@@ -1,67 +1,128 @@
 #!/usr/bin/env python3
 """
-FoldPath VTK Visualizer - Clean version
-Shows full 3D object mesh with predicted (colored polylines) and ground truth (white points)
+FoldPath Static Visualizer
+Static visualization of predicted folding paths on object meshes.
+Saves high-quality PNG images without interactive window.
+
+Usage:
+    python visualize_foldpath_static.py --inference_file predictions.npy \
+           --data_root ./dataset --sample_dir sample_name --output_dir ./visualizations
 """
 
 import argparse
-import json
 import logging
 import os
-import sys
 import numpy as np
 import vtk
-from typing import List, Optional, Dict, Tuple, Any
+from typing import List, Optional, Dict, Tuple
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-
 
 # ===================== Configuration =====================
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ===================== OBJ Mesh Loading Functions =====================
+
+# ===================== Data Loading Functions =====================
+def load_obj_vertices(obj_path: str) -> np.ndarray:
+    """
+    Load vertices from OBJ file.
+    
+    Args:
+        obj_path: Path to OBJ file
+        
+    Returns:
+        numpy array of vertices (N, 3) or empty array if failed
+    """
+    vertices = []
+    try:
+        with open(obj_path, 'r') as f:
+            for line in f:
+                if line.startswith('v '):
+                    parts = line.strip().split()
+                    if len(parts) >= 4:
+                        x, y, z = float(parts[1]), float(parts[2]), float(parts[3])
+                        vertices.append([x, y, z])
+        
+        return np.array(vertices, dtype=np.float32) if vertices else np.zeros((0, 3))
+        
+    except Exception as e:
+        logger.error(f"Failed to load OBJ vertices: {e}")
+        return np.zeros((0, 3))
+
+
+def calculate_normalization_params(vertices: np.ndarray) -> Dict:
+    """
+    Calculate per-mesh normalization parameters.
+    
+    Args:
+        vertices: Mesh vertices (N, 3)
+        
+    Returns:
+        Dictionary with 'center' and 'scale' keys
+    """
+    if len(vertices) == 0:
+        return {'center': [0.0, 0.0, 0.0], 'scale': 1.0}
+    
+    center = vertices.mean(axis=0)
+    centered = vertices - center
+    max_dist = np.linalg.norm(centered, axis=1).max()
+    scale = 1.0 / max_dist if max_dist > 0 else 1.0
+    
+    logger.info(f"Normalization: center={center}, scale={scale:.6f}")
+    
+    return {'center': center.tolist(), 'scale': float(scale)}
+
+
 def load_obj_mesh(obj_path: str, norm_params: Dict) -> Optional[vtk.vtkPolyData]:
     """
-    Load OBJ mesh and denormalize it
+    Load OBJ mesh and apply denormalization if needed.
+    
+    Args:
+        obj_path: Path to OBJ file
+        norm_params: Normalization parameters
+        
+    Returns:
+        VTK PolyData object or None if failed
     """
     try:
-        # Load OBJ file
         obj_reader = vtk.vtkOBJReader()
         obj_reader.SetFileName(obj_path)
         obj_reader.Update()
         
         polydata = obj_reader.GetOutput()
         if polydata is None or polydata.GetNumberOfPoints() == 0:
-            logger.warning(f"OBJ file has no valid vertices: {obj_path}")
             return None
         
         points = polydata.GetPoints()
         n_points = points.GetNumberOfPoints()
         
-        # Get vertices as numpy array
+        # Extract vertices
         vertices_np = np.zeros((n_points, 3), dtype=np.float32)
         for i in range(n_points):
             vertices_np[i] = points.GetPoint(i)
         
-        # Denormalize vertices
-        center = np.array(norm_params.get('center', [0.0, 0.0, 0.0]), dtype=np.float32)
+        center = np.array(norm_params.get('center', [0.0, 0.0, 0.0]))
         scale = float(norm_params.get('scale', 1.0))
         
-        vertices_denorm = vertices_np.copy()
-        vertices_denorm[:, 0] = vertices_denorm[:, 0] * scale + center[0]
-        vertices_denorm[:, 1] = vertices_denorm[:, 1] * scale + center[1]
-        vertices_denorm[:, 2] = vertices_denorm[:, 2] * scale + center[2]
+        # Check if mesh is normalized (heuristic)
+        avg_vertex_range = np.abs(vertices_np).max()
         
-        # Update VTK PolyData with denormalized points
+        if avg_vertex_range < 2.0:  # Likely normalized
+            vertices_denorm = vertices_np.copy()
+            vertices_denorm[:, 0] = vertices_denorm[:, 0] / scale + center[0]
+            vertices_denorm[:, 1] = vertices_denorm[:, 1] / scale + center[1]
+            vertices_denorm[:, 2] = vertices_denorm[:, 2] / scale + center[2]
+        else:
+            vertices_denorm = vertices_np
+        
+        # Update VTK points
         new_points = vtk.vtkPoints()
         for i in range(len(vertices_denorm)):
-            new_points.InsertPoint(i, vertices_denorm[i])
+            new_points.InsertNextPoint(vertices_denorm[i])
         polydata.SetPoints(new_points)
         polydata.Modified()
+        
+        logger.info(f"Mesh loaded: {n_points} vertices")
         
         return polydata
         
@@ -69,9 +130,70 @@ def load_obj_mesh(obj_path: str, norm_params: Dict) -> Optional[vtk.vtkPolyData]
         logger.error(f"Failed to load OBJ mesh: {e}")
         return None
 
-def create_mesh_actor(polydata: vtk.vtkPolyData) -> vtk.vtkActor:
+
+def load_inference_results(pred_file: str) -> Optional[Dict]:
     """
-    Create VTK actor for OBJ mesh
+    Load inference results from numpy file.
+    
+    Args:
+        pred_file: Path to predictions.npy file
+        
+    Returns:
+        Dictionary with predictions or None if failed
+    """
+    try:
+        data = np.load(pred_file, allow_pickle=True).item()
+        return data.get('predictions') if 'predictions' in data else None
+    except Exception as e:
+        logger.error(f"Failed to load inference results: {e}")
+        return None
+
+
+def denormalize_trajectory(trajectory: np.ndarray, norm_params: Dict) -> np.ndarray:
+    """
+    Denormalize trajectory from normalized space to original object space.
+    
+    Args:
+        trajectory: Normalized trajectory points (N, 3) in [-1, 1] range
+        norm_params: Normalization parameters
+        
+    Returns:
+        Denormalized trajectory in original object space
+    """
+    if trajectory is None or len(trajectory) == 0:
+        return trajectory
+    
+    try:
+        center = np.array(norm_params.get('center', [0.0, 0.0, 0.0]))
+        scale = float(norm_params.get('scale', 1.0))
+        
+        if scale == 0:
+            scale = 1.0
+        
+        denorm_trajectory = trajectory.copy()
+        
+        # Denormalization: v_original = v_normalized / scale + center
+        for i in range(len(denorm_trajectory)):
+            for j in range(3):
+                denorm_trajectory[i, j] = denorm_trajectory[i, j] / scale + center[j]
+        
+        return denorm_trajectory
+        
+    except Exception as e:
+        logger.error(f"Failed to denormalize trajectory: {e}")
+        return trajectory
+
+
+# ===================== VTK Actor Creation =====================
+def create_mesh_actor(polydata: vtk.vtkPolyData) -> Optional[vtk.vtkActor]:
+    """
+    Create VTK actor for gray object mesh.
+    
+    Args:
+        polydata: VTK PolyData object
+        
+    Returns:
+        VTK Actor for mesh or None if failed
     """
     try:
         mapper = vtk.vtkPolyDataMapper()
@@ -81,149 +203,39 @@ def create_mesh_actor(polydata: vtk.vtkPolyData) -> vtk.vtkActor:
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         actor.GetProperty().SetColor(0.85, 0.85, 0.85)  # Light gray
-        actor.GetProperty().SetOpacity(0.9)
-        actor.GetProperty().SetSpecular(0.3)
-        actor.GetProperty().SetSpecularPower(20)
-        actor.GetProperty().SetDiffuse(0.7)
-        actor.GetProperty().SetAmbient(0.3)
+        actor.GetProperty().SetOpacity(0.85)
         
-        # Show mesh edges
+        # Show edges for better depth perception
         actor.GetProperty().SetEdgeColor(0.5, 0.5, 0.5)
         actor.GetProperty().SetEdgeVisibility(True)
         actor.GetProperty().SetLineWidth(0.5)
         
         return actor
-        
-    except Exception as e:
-        logger.error(f"Failed to create mesh actor: {e}")
+    except Exception:
         return None
 
-# ===================== Data Loading and Processing =====================
-def load_predictions(pred_file: str) -> Dict[str, Any]:
-    """
-    Load prediction data from npy file
-    """
-    try:
-        data = np.load(pred_file, allow_pickle=True)
-        if isinstance(data, np.ndarray) and data.dtype == object:
-            data = data.item()
-        
-        if not isinstance(data, dict) or 'traj_pred' not in data:
-            logger.error("Invalid data format in predictions file")
-            return {}
-        
-        return data
-        
-    except Exception as e:
-        logger.error(f"Failed to load predictions: {e}")
-        return {}
 
-def denormalize_points(points: np.ndarray, norm_params: Dict) -> np.ndarray:
+def create_trajectory_actor(trajectory: np.ndarray, color: Tuple, 
+                           line_width: float = 12.0) -> Optional[vtk.vtkActor]:
     """
-    Denormalize point coordinates
-    """
-    if norm_params is None or points is None:
-        return points
+    Create VTK actor for trajectory line.
     
-    try:
-        center = np.array(norm_params.get('center', [0, 0, 0]))
-        scale = norm_params.get('scale', 1.0)
+    Args:
+        trajectory: Trajectory points (N, 3)
+        color: RGB color tuple
+        line_width: Width of trajectory line
         
-        denorm_points = points.copy()
-        if denorm_points.shape[1] >= 3:
-            denorm_points[:, :3] = denorm_points[:, :3] * scale + center
-        
-        return denorm_points
-    except Exception as e:
-        logger.error(f"Failed to denormalize points: {e}")
-        return points
-
-def extract_trajectories(data: Dict[str, Any], sample_idx: int, 
-                        norm_params: Optional[Dict] = None,
-                        trajectory_type: str = 'pred',
-                        max_trajectories: int = 10) -> List[np.ndarray]:
-    """
-    Extract trajectories from predictions data
-    """
-    trajectories = []
-    
-    try:
-        if trajectory_type == 'pred':
-            traj_key = 'traj_pred'
-        elif trajectory_type == 'gt':
-            traj_key = 'traj_gt'
-        else:
-            return trajectories
-        
-        if traj_key not in data:
-            return trajectories
-        
-        traj_data = data[traj_key]
-        
-        if traj_data.ndim != 4:
-            return trajectories
-        
-        batch_size, num_queries, _, _ = traj_data.shape
-        
-        if sample_idx >= batch_size:
-            return trajectories
-        
-        # Extract trajectories
-        for path_idx in range(min(num_queries, max_trajectories)):
-            try:
-                trajectory = traj_data[sample_idx, path_idx]
-                positions = trajectory[:, :3]  # Extract position coordinates
-                
-                # Denormalize if parameters provided
-                if norm_params is not None:
-                    positions = denormalize_points(positions, norm_params)
-                
-                # Filter invalid values
-                mask = ~np.isnan(positions).any(axis=1) & ~np.isinf(positions).any(axis=1)
-                positions = positions[mask]
-                
-                if len(positions) > 1:  # Need at least 2 points for a line
-                    trajectories.append(positions)
-                    
-            except Exception:
-                continue
-        
-        return trajectories
-        
-    except Exception:
-        return trajectories
-
-def get_colormap_colors(colormap_name: str = 'tab10', num_colors: int = 10) -> List[Tuple[float, float, float]]:
-    """
-    get color from matplotlib colormap
-    """
-    # get colormap
-    cmap = plt.colormaps[colormap_name] if colormap_name in plt.colormaps else plt.colormaps.get_cmap(colormap_name)
-    
-    colors = []
-    for i in range(num_colors):
-        rgba = cmap(i / max(num_colors - 1, 1))
-        colors.append(rgba[:3])    
-    return colors
-
-# ===================== Trajectory Visualization Functions =====================
-def create_trajectory_actor(trajectory: np.ndarray,
-                           color: Tuple[float, float, float],
-                           line_width: float = 3.0,
-                           opacity: float = 0.8) -> Optional[vtk.vtkActor]:
-    """
-    Create VTK actor for trajectory polyline
+    Returns:
+        VTK Actor for trajectory or None if failed
     """
     try:
-        if trajectory is None or len(trajectory) < 2:
+        if len(trajectory) < 2:
             return None
         
-        # Create points
         points = vtk.vtkPoints()
-        for point in trajectory:
-            points.InsertNextPoint(float(point[0]), float(point[1]), float(point[2]))
+        for pt in trajectory:
+            points.InsertNextPoint(float(pt[0]), float(pt[1]), float(pt[2]))
         
-        # Create polyline
         polyline = vtk.vtkPolyLine()
         polyline.GetPointIds().SetNumberOfIds(len(trajectory))
         for i in range(len(trajectory)):
@@ -232,276 +244,162 @@ def create_trajectory_actor(trajectory: np.ndarray,
         cells = vtk.vtkCellArray()
         cells.InsertNextCell(polyline)
         
-        # Create polydata
         polydata = vtk.vtkPolyData()
         polydata.SetPoints(points)
         polydata.SetLines(cells)
         
-        # Create mapper
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(polydata)
         
-        # Create actor
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
-        actor.GetProperty().SetColor(color[0], color[1], color[2])
+        actor.GetProperty().SetColor(*color)
         actor.GetProperty().SetLineWidth(line_width)
-        actor.GetProperty().SetOpacity(opacity)
         actor.GetProperty().SetLighting(False)
         
         return actor
-        
     except Exception:
         return None
 
-def create_trajectory_points_actor(trajectory: np.ndarray,
-                                 color: Tuple[float, float, float],
-                                 point_size: float = 8.0,
-                                 opacity: float = 1.0,
-                                 is_ground_truth: bool = False) -> Optional[vtk.vtkActor]:
+
+def create_path_markers(trajectory: np.ndarray, color: Tuple, 
+                       point_size: float = 30.0) -> Optional[vtk.vtkActor]:
     """
-    Create VTK actor for trajectory points
+    Create VTK actor for trajectory start and end markers.
+    
+    Args:
+        trajectory: Trajectory points (N, 3)
+        color: RGB color tuple
+        point_size: Size of marker points
+        
+    Returns:
+        VTK Actor for markers or None if failed
     """
     try:
-        if trajectory is None or len(trajectory) == 0:
+        if len(trajectory) < 2:
             return None
         
-        if is_ground_truth:
-            # Ground truth: 显示所有点，但采样避免过多
-            if len(trajectory) > 30:  # 减少采样点
-                step = len(trajectory) // 30
-                display_points = trajectory[::step]
-            else:
-                display_points = trajectory
-        else:
-            # 预测轨迹：只显示起点和终点
-            display_points = np.vstack([trajectory[0:1], trajectory[-1:]])
+        points = vtk.vtkPoints()
+        vertices = vtk.vtkCellArray()
         
-        # Create VTK points
-        vtk_points = vtk.vtkPoints()
-        vtk_vertices = vtk.vtkCellArray()
+        # Start point
+        idx1 = points.InsertNextPoint(float(trajectory[0, 0]), 
+                                     float(trajectory[0, 1]), 
+                                     float(trajectory[0, 2]))
+        vertices.InsertNextCell(1)
+        vertices.InsertCellPoint(idx1)
         
-        for i, point in enumerate(display_points):
-            point_id = vtk_points.InsertNextPoint(float(point[0]), float(point[1]), float(point[2]))
-            vtk_vertices.InsertNextCell(1)
-            vtk_vertices.InsertCellPoint(point_id)
+        # End point
+        idx2 = points.InsertNextPoint(float(trajectory[-1, 0]), 
+                                     float(trajectory[-1, 1]), 
+                                     float(trajectory[-1, 2]))
+        vertices.InsertNextCell(1)
+        vertices.InsertCellPoint(idx2)
         
-        # Create polydata
         polydata = vtk.vtkPolyData()
-        polydata.SetPoints(vtk_points)
-        polydata.SetVerts(vtk_vertices)
+        polydata.SetPoints(points)
+        polydata.SetVerts(vertices)
         
-        # Create mapper and actor
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(polydata)
         
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
-        actor.GetProperty().SetColor(color[0], color[1], color[2])
+        actor.GetProperty().SetColor(*color)
         actor.GetProperty().SetPointSize(point_size)
-        actor.GetProperty().SetOpacity(opacity)
         actor.GetProperty().SetLighting(False)
         
         return actor
-        
     except Exception:
         return None
 
-# ===================== Scene Setup and Camera =====================
-def calculate_scene_bounds(mesh_polydata: Optional[vtk.vtkPolyData],
-                          pred_trajectories: List[np.ndarray],
-                          gt_trajectories: List[np.ndarray]) -> List[float]:
-    """
-    Calculate bounds that encompass entire scene
-    """
-    all_points = []
-    
-    # Add mesh points
-    if mesh_polydata:
-        mesh_points = mesh_polydata.GetPoints()
-        if mesh_points:
-            n_points = mesh_points.GetNumberOfPoints()
-            mesh_vertices = np.zeros((n_points, 3))
-            for i in range(n_points):
-                mesh_vertices[i] = mesh_points.GetPoint(i)
-            all_points.append(mesh_vertices)
-    
-    # Add trajectory points
-    for traj in pred_trajectories:
-        if traj is not None and len(traj) > 0:
-            all_points.append(traj)
-    
-    for traj in gt_trajectories:
-        if traj is not None and len(traj) > 0:
-            all_points.append(traj)
-    
-    if not all_points:
-        return [-1, 1, -1, 1, -1, 1]
-    
-    # Combine all points
-    all_points_concat = np.vstack([p for p in all_points if len(p) > 0])
-    
-    # Calculate bounds with padding
-    bounds = [
-        float(np.min(all_points_concat[:, 0])),
-        float(np.max(all_points_concat[:, 0])),
-        float(np.min(all_points_concat[:, 1])),
-        float(np.max(all_points_concat[:, 1])),
-        float(np.min(all_points_concat[:, 2])),
-        float(np.max(all_points_concat[:, 2]))
-    ]
-    
-    # Add padding to ensure everything is visible
-    padding_x = (bounds[1] - bounds[0]) * 0.1
-    padding_y = (bounds[3] - bounds[2]) * 0.1
-    padding_z = (bounds[5] - bounds[4]) * 0.1
-    
-    return [
-        bounds[0] - padding_x, bounds[1] + padding_x,
-        bounds[2] - padding_y, bounds[3] + padding_y,
-        bounds[4] - padding_z, bounds[5] + padding_z
-    ]
 
-def setup_camera(renderer: vtk.vtkRenderer, bounds: List[float]) -> None:
+def get_colormap_colors(colormap_name: str = 'tab10', num_colors: int = 10) -> List[Tuple]:
     """
-    Setup camera to show entire scene
+    Get colors from matplotlib colormap.
+    
+    Args:
+        colormap_name: Name of matplotlib colormap
+        num_colors: Number of colors to extract
+        
+    Returns:
+        List of RGB color tuples
+    """
+    cmap = plt.colormaps[colormap_name]
+    colors = []
+    for i in range(num_colors):
+        rgba = cmap(i / max(num_colors - 1, 1))
+        colors.append(rgba[:3])
+    return colors
+
+
+# ===================== Main Visualization Function =====================
+def create_visualization(mesh_polydata, trajectories, path_info, 
+                        output_path: str, max_trajectories: int = 6) -> bool:
+    """
+    Create and save static visualization.
+    
+    Args:
+        mesh_polydata: VTK PolyData of object mesh
+        trajectories: List of denormalized trajectory arrays
+        path_info: List of trajectory information dictionaries
+        output_path: Path to save PNG image
+        max_trajectories: Maximum number of trajectories to display
+        
+    Returns:
+        True if successful, False otherwise
     """
     try:
-        camera = renderer.GetActiveCamera()
-        
-        # Calculate center of scene
-        center = [
-            (bounds[0] + bounds[1]) / 2,
-            (bounds[2] + bounds[3]) / 2,
-            (bounds[4] + bounds[5]) / 2
-        ]
-        
-        # Calculate maximum dimension
-        dx = bounds[1] - bounds[0]
-        dy = bounds[3] - bounds[2]
-        dz = bounds[5] - bounds[4]
-        max_dim = max(dx, dy, dz)
-        
-        # Set camera distance
-        distance = max_dim * 0.5
-        
-        # Set camera position to show isometric view
-        camera.SetPosition(
-            center[0] + distance * 0.5,
-            center[1] - distance * 0.5,
-            center[2] + distance * 0.5
-        )
-        camera.SetFocalPoint(center[0], center[1], center[2])
-        camera.SetViewUp(0, 0, 1)
-        
-        # Set clipping planes
-        near_clip = 0.1
-        far_clip = distance * 3
-        camera.SetClippingRange(near_clip, far_clip)
-        
-        # Reset camera to ensure everything is visible
-        renderer.ResetCamera(bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5])
-        
-        # Zoom out a bit more for safety
-        camera.Zoom(1.2)
-        
-    except Exception:
-        pass
-
-# ===================== Visualization Functions =====================
-def create_visualization(mesh_polydata: Optional[vtk.vtkPolyData],
-                        pred_trajectories: List[np.ndarray],
-                        gt_trajectories: List[np.ndarray],
-                        sample_name: str,
-                        output_path: str,
-                        max_trajectories: int = 10) -> bool:
-    """
-    Create visualization showing mesh with trajectories
-    - Prediction: Colored polylines with start/end points
-    - Ground Truth: White points only
-    """
-    try:
-        # Create renderer with light background
+        # Create renderer with light gray background
         renderer = vtk.vtkRenderer()
         renderer.SetBackground(0.95, 0.95, 0.95)
         
         # Add lighting
         light = vtk.vtkLight()
-        light.SetPosition(5, 5, 10)
+        light.SetPosition(10, 10, 10)
         light.SetFocalPoint(0, 0, 0)
-        light.SetIntensity(0.8)
+        light.SetIntensity(1.0)
         renderer.AddLight(light)
         
-        fill_light = vtk.vtkLight()
-        fill_light.SetPosition(-5, -5, 5)
-        fill_light.SetFocalPoint(0, 0, 0)
-        fill_light.SetIntensity(0.4)
-        renderer.AddLight(fill_light)
-        
-        # Add mesh actor (if available)
+        # Add gray mesh
         if mesh_polydata:
             mesh_actor = create_mesh_actor(mesh_polydata)
             if mesh_actor:
                 renderer.AddActor(mesh_actor)
+                logger.info("Added object mesh")
         
-        # Get colors for predictions (tab10 colormap)
-        pred_colors = get_colormap_colors('tab10', max_trajectories)
+        # Add colored trajectories
+        colors = get_colormap_colors('tab10', max_trajectories)
         
-        # Add predicted trajectories (colored polylines)
-        for i, traj in enumerate(pred_trajectories[:max_trajectories]):
+        for i, (traj, info) in enumerate(zip(trajectories[:max_trajectories], 
+                                           path_info[:max_trajectories])):
             if len(traj) > 1:
-                color = pred_colors[i % len(pred_colors)]
+                color = colors[i % len(colors)]
                 
-                # Add trajectory polyline
-                line_actor = create_trajectory_actor(
-                    traj,
-                    color=color,
-                    line_width=10.0,
-                    opacity=0.8
-                )
+                # Add trajectory line
+                line_actor = create_trajectory_actor(traj, color, line_width=15.0)
                 if line_actor:
                     renderer.AddActor(line_actor)
                 
-                # Add start/end points for prediction
-                points_actor = create_trajectory_points_actor(
-                    traj,
-                    color=color,
-                    point_size=10.0,
-                    opacity=0.8,
-                    is_ground_truth=False
-                )
-                if points_actor:
-                    renderer.AddActor(points_actor)
+                # Add start and end markers
+                markers_actor = create_path_markers(traj, color, point_size=30.0)
+                if markers_actor:
+                    renderer.AddActor(markers_actor)
+                
+                logger.info(f"Path {i}: conf={info['confidence']:.3f}, length={info['length']:.2f}")
         
-        # Add ground truth trajectories (white points only)
-        for i, traj in enumerate(gt_trajectories[:max_trajectories]):
-            if len(traj) > 0:
-                color = (1.0, 1.0, 1.0)
-
-                points_actor = create_trajectory_points_actor(
-                    traj,
-                    color=color,
-                    point_size=10.0,
-                    opacity=1.0,
-                    is_ground_truth=True
-                )
-                if points_actor:
-                    renderer.AddActor(points_actor)
-        
-        # Calculate scene bounds and setup camera
-        bounds = calculate_scene_bounds(mesh_polydata, 
-                                       pred_trajectories[:max_trajectories], 
-                                       gt_trajectories[:max_trajectories])
-        setup_camera(renderer, bounds)
+        # Setup camera
+        renderer.ResetCamera()
+        renderer.GetActiveCamera().Zoom(1.1)
         
         # Create render window
         render_window = vtk.vtkRenderWindow()
         render_window.AddRenderer(renderer)
-        render_window.SetSize(1920, 1080)
+        render_window.SetSize(1600, 1200)
         render_window.SetMultiSamples(8)  # Anti-aliasing
         render_window.OffScreenRenderingOn()
         
-        # Render
+        # Render scene
         render_window.Render()
         
         # Save to high-quality PNG
@@ -517,115 +415,111 @@ def create_visualization(mesh_polydata: Optional[vtk.vtkPolyData],
         writer.SetInputConnection(window_to_image.GetOutputPort())
         writer.Write()
         
+        logger.info(f"Saved visualization: {output_path}")
         return True
         
     except Exception as e:
         logger.error(f"Failed to create visualization: {e}")
         return False
 
+
 # ===================== Main Function =====================
 def main():
-    parser = argparse.ArgumentParser(description='FoldPath VTK Visualizer')
+    """Main function for static visualization."""
+    parser = argparse.ArgumentParser(description='FoldPath Static Visualizer')
     
-    parser.add_argument('--pred_dir', required=True, type=str, 
-                       help='Directory containing all_predictions.npy')
-    parser.add_argument('--normalized_root', default='/fileStore/windows-v2-normalized', 
-                       type=str, help='Directory containing normalized OBJ files')
-    parser.add_argument('--sample_dirs', nargs='+', default=['1_wr1fr_1'], 
-                       help='Sample directory names')
-    parser.add_argument('--output_dir', default=None, type=str, 
-                       help='Output directory for visualizations')
-    parser.add_argument('--max_samples', default=1, type=int, 
-                       help='Maximum number of samples to visualize')
-    parser.add_argument('--max_trajectories', default=10, type=int, 
-                       help='Maximum number of trajectories to show')
+    parser.add_argument('--inference_file', type=str, required=True,
+                       help='Inference output file (e.g., predictions.npy)')
+    parser.add_argument('--data_root', type=str, required=True,
+                       help='Root directory containing sample folders')
+    parser.add_argument('--sample_dir', type=str, required=True,
+                       help='Sample directory name')
+    parser.add_argument('--output_dir', type=str, default='./visualizations',
+                       help='Output directory for PNG images')
+    parser.add_argument('--max_trajectories', type=int, default=6,
+                       help='Maximum number of trajectories to display')
     
     args = parser.parse_args()
-    
-    # Set output directory
-    if args.output_dir is None:
-        args.output_dir = os.path.join(args.pred_dir, "visualizations")
-    
-    logger.info("FoldPath VTK Visualizer")
-    logger.info(f"Output directory: {args.output_dir}")
-    
-    # Validate directories
-    if not os.path.isdir(args.pred_dir):
-        logger.error(f"Predictions directory does not exist: {args.pred_dir}")
-        return
-    
-    if not os.path.isdir(args.normalized_root):
-        logger.error(f"Normalized root does not exist: {args.normalized_root}")
-        return
-    
-    # Load prediction data
-    pred_file = os.path.join(args.pred_dir, "all_predictions.npy")
-    if not os.path.exists(pred_file):
-        logger.error(f"all_predictions.npy not found: {pred_file}")
-        return
-    
-    data = load_predictions(pred_file)
-    if not data:
-        logger.error("Failed to load prediction data")
-        return
     
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # Process each sample
-    num_samples = min(len(args.sample_dirs), args.max_samples)
+    logger.info("=" * 60)
+    logger.info("FoldPath Static Visualizer")
+    logger.info("=" * 60)
     
-    for sample_idx in range(num_samples):
-        sample_dir = args.sample_dirs[sample_idx]
-        logger.info(f"Processing sample: {sample_dir}")
-        
-        # Load normalization parameters
-        params_path = os.path.join(args.normalized_root, sample_dir, "norm_params.json")
-        if not os.path.exists(params_path):
-            norm_params = {'center': [0.0, 0.0, 0.0], 'scale': 1.0}
-        else:
-            with open(params_path, 'r') as f:
-                norm_params = json.load(f)
-        
-        # Load OBJ mesh
-        mesh_path = os.path.join(args.normalized_root, sample_dir, f"{sample_dir}_norm.obj")
-        if not os.path.exists(mesh_path):
-            mesh_path = os.path.join(args.normalized_root, sample_dir, f"{sample_dir}.obj")
-        
-        mesh_polydata = None
-        if os.path.exists(mesh_path):
-            mesh_polydata = load_obj_mesh(mesh_path, norm_params)
-        
-        # Extract trajectories
-        pred_trajectories = extract_trajectories(
-            data, sample_idx, norm_params, 'pred', args.max_trajectories
-        )
-        
-        gt_trajectories = extract_trajectories(
-            data, sample_idx, norm_params, 'gt', args.max_trajectories
-        )
-        
-        # Create visualization
-        if pred_trajectories or gt_trajectories:
-            output_path = os.path.join(args.output_dir, f"{sample_dir}_pred_vs_gt.png")
-            
-            success = create_visualization(
-                mesh_polydata=mesh_polydata,
-                pred_trajectories=pred_trajectories,
-                gt_trajectories=gt_trajectories,
-                sample_name=sample_dir,
-                output_path=output_path,
-                max_trajectories=args.max_trajectories
-            )
-            
-            if success:
-                logger.info(f"  Saved: {output_path}")
-            else:
-                logger.error(f"  Failed to create visualization")
-        else:
-            logger.warning(f"  No valid trajectories found")
+    # Load inference results
+    if not os.path.exists(args.inference_file):
+        logger.error(f"Inference file not found: {args.inference_file}")
+        return
     
-    logger.info("Visualization completed!")
+    predictions = load_inference_results(args.inference_file)
+    if predictions is None:
+        logger.error("Failed to load inference results")
+        return
+    
+    sample_name = predictions.get('sample', args.sample_dir)
+    paths = predictions.get('paths', [])
+    path_info = predictions.get('path_info', [])
+    
+    logger.info(f"Loaded {len(paths)} predicted paths")
+    
+    # Load OBJ file and calculate normalization
+    obj_path = os.path.join(args.data_root, args.sample_dir, f"{args.sample_dir}.obj")
+    if not os.path.exists(obj_path):
+        logger.error(f"OBJ file not found: {obj_path}")
+        return
+    
+    # Calculate normalization parameters
+    logger.info(f"Calculating normalization parameters...")
+    vertices = load_obj_vertices(obj_path)
+    if len(vertices) == 0:
+        logger.error("Failed to load vertices from OBJ file")
+        return
+    
+    norm_params = calculate_normalization_params(vertices)
+    
+    # Load and process mesh
+    mesh_polydata = load_obj_mesh(obj_path, norm_params)
+    if not mesh_polydata:
+        logger.error("Failed to load mesh")
+        return
+    
+    # Process trajectories
+    valid_paths = []
+    for i, path in enumerate(paths[:args.max_trajectories]):
+        if path is not None and len(path) > 1:
+            # Ensure proper shape
+            if path.ndim == 1:
+                path = path.reshape(-1, 3)
+            
+            # Denormalize trajectory
+            denorm_path = denormalize_trajectory(path, norm_params)
+            
+            if denorm_path is not None:
+                valid_paths.append(denorm_path)
+                logger.info(f"Path {i}: denormalized to object space")
+    
+    logger.info(f"Processed {len(valid_paths)} trajectories")
+    
+    # Create and save visualization
+    output_path = os.path.join(args.output_dir, f"{sample_name}_foldpath.png")
+    
+    success = create_visualization(
+        mesh_polydata=mesh_polydata,
+        trajectories=valid_paths,
+        path_info=path_info[:args.max_trajectories],
+        output_path=output_path,
+        max_trajectories=args.max_trajectories
+    )
+    
+    if success:
+        logger.info("=" * 60)
+        logger.info(f"Visualization saved to: {output_path}")
+        logger.info("=" * 60)
+    else:
+        logger.error("Failed to create visualization")
+
 
 if __name__ == '__main__':
     main()
