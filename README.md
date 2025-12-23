@@ -97,20 +97,20 @@ Outputs:
 
 | dataset | activation | AP_DTW | AP_DTW (paper) | AP_DTW^50 | AP_DTW^50 (paper)
 |--------|--------|------|------| ------ | ------ |
-| cuboids | relu | x | `35.2` | 90.5 | `59.8` |
-| | siren | x | `60.3` | x | `97.5`|
-| | firen | x | `91.1` | x | `99.2`|
-| windows | relu | x | `71.8` |  | `91.4` |
-| | siren | x | `71.9` | 90 | `91.3`|
-| | firen | x | `75.0` | x | `91.9`|
-| shelves | relu | x | `75.4` | x | `88.4` |
-| | siren | x | `78.0` | x | `89.5`|
-| | firen | x | `84.3` | x | `91.3`|
+| cuboids | relu |  | `35.2` | 90.5 | `59.8` |
+| | siren |  | `60.3` |  | `97.5`|
+| | firen |  | `91.1` |  | `99.2`|
+| windows | relu | | `71.8` |  | `91.4` |
+| | siren |  | `71.9` | 90 | `91.3`|
+| | firen |  | `75.0` |  | `91.9`|
+| shelves | relu |  | `75.4` |  | `88.4` |
+| | siren |  | `78.0` |  | `89.5`|
+| | firen |  | `84.3` |  | `91.3`|
 
 #### reproduction of TABLE 2: containers
 | dataset | activation| AP_DTW^easy| AP_DTW^easy (paper) |
 |--------|--------|------|------|
-| containers | finer | x | `13.7` |
+| containers | finer |  | `13.7` |
 
 PS: As noted in the paper, PCD metrics are dependent on the sampling rate and exhibit high sensitivity to outliers, rendering them unreliable and less informative in real-world scenarios. For this reason, we omit this metric from our reproduction and comparative analysis.
 
