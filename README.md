@@ -64,6 +64,8 @@ Outputs:
 * `runs/foldpath_cuboids_finer/config.json`
 * `runs/foldpath_cuboids_finer/checkpoints/last.pth`
 
+I have uploaded a model for cuboids_finer to Hugging Face, which is available for quick validation and visualization. Here is the access link: https://huggingface.co/CordyZZZ/foldpath/tree/main
+
 ## 4) Inference
 ```bash
 python inference.py \
